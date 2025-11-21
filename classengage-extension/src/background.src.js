@@ -29,6 +29,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'SUBMIT_QUIZ') {
+    handleSubmitQuiz(message.data).then(sendResponse);
+    return true;
+  }
+
   if (message.type === 'PING') {
     sendResponse({ type: 'PONG' });
   }
@@ -114,6 +119,67 @@ async function handleSubmitAnswer({ sessionId, visibleStudentId, visibleStudentN
     return { success: true, isCorrect, correctOption };
   } catch (err) {
     console.error('Submit answer error:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+async function handleSubmitQuiz({ sessionId, visibleStudentId, visibleStudentName, center, quizId, answers }) {
+  try {
+    const sessionRef = doc(db, 'sessions', sessionId);
+    const sessionSnap = await getDoc(sessionRef);
+
+    if (!sessionSnap.exists()) {
+      return { success: false, error: 'Session not found' };
+    }
+
+    const sessionData = sessionSnap.data();
+    const activeQuiz = sessionData.activeQuiz;
+
+    if (!activeQuiz || activeQuiz.quizId !== quizId) {
+      return { success: false, error: 'Quiz not active or expired' };
+    }
+
+    // Server-side correctness check for all answers
+    let totalScore = 0;
+    const results = {};
+
+    activeQuiz.questions.forEach(q => {
+      const studentAnswer = answers[q.questionId];
+      const isCorrect = studentAnswer === q.correctOption;
+      results[q.questionId] = {
+        isCorrect,
+        correctOption: q.correctOption,
+        studentAnswer
+      };
+      if (isCorrect) {
+        totalScore += q.points;
+      }
+    });
+
+    // Record quiz submission
+    await addDoc(collection(db, 'sessions', sessionId, 'quizSubmissions'), {
+      visibleStudentId,
+      visibleStudentName,
+      center,
+      quizId,
+      answers,
+      results,
+      totalScore,
+      submittedAt: serverTimestamp()
+    });
+
+    // Update student score
+    const studentRef = doc(db, 'sessions', sessionId, 'students', visibleStudentId);
+    await updateDoc(studentRef, {
+      score: increment(totalScore)
+    });
+
+    // Update leaderboard
+    await updateLeaderboard(sessionId);
+
+    return { success: true, totalScore, results };
+  } catch (err) {
+    console.error('Submit quiz error:', err);
     return { success: false, error: err.message };
   }
 }

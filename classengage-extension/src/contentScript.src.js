@@ -38,6 +38,15 @@ const db = getFirestore(app);
   let currentPoll = null;
   let selectedAnswer = null;
   let hasAnsweredCurrentPoll = false;
+
+  // Quiz state
+  let currentQuiz = null;
+  let quizAnswers = {};
+  let currentQuestionIndex = 0;
+  let quizTimeRemaining = 0;
+  let quizTimerInterval = null;
+  let hasSubmittedQuiz = false;
+
   let unsubscribe = null;
 
   const el = (tag, cls) => {
@@ -55,7 +64,9 @@ const db = getFirestore(app);
     top: '12px',
     right: '12px',
     left: 'auto',
-    width: '320px',
+    width: '340px',
+    maxHeight: '80vh',
+    overflowY: 'auto',
     zIndex: '2147483647',
     pointerEvents: 'auto',
     display: 'block',
@@ -79,7 +90,7 @@ const db = getFirestore(app);
       <div class="ce-status" style="font-size:11px;color:#6F6F78;margin:4px 0 8px;"></div>
 
       <div class="ce-tabs" style="display:flex;gap:8px;padding:8px 0;">
-        <button class="ce-tab ce-tab-active" data-tab="polls" style="padding:6px 12px;border-radius:8px;background:#6C5CE7;color:#fff;font-weight:600;border:none;cursor:pointer;">Polls</button>
+        <button class="ce-tab ce-tab-active" data-tab="activity" style="padding:6px 12px;border-radius:8px;background:#6C5CE7;color:#fff;font-weight:600;border:none;cursor:pointer;">Activity</button>
         <button class="ce-tab" data-tab="leader" style="padding:6px 12px;border-radius:8px;background:transparent;border:none;color:#6F6F78;cursor:pointer;">Leaderboard</button>
       </div>
 
@@ -93,13 +104,38 @@ const db = getFirestore(app);
           <div id="ce-join-error" style="color:#e74c3c;font-size:12px;margin-top:8px;display:none;"></div>
         </div>
 
-        <div class="ce-content ce-content-polls" style="display:none;">
+        <div class="ce-content ce-content-activity" style="display:none;">
           <div class="ce-hello" style="margin-bottom:8px;font-weight:500;"></div>
-          <div class="ce-poll-container">
+
+          <!-- Poll Container -->
+          <div class="ce-poll-container" style="display:none;">
             <div class="ce-question" style="font-weight:600;margin-bottom:12px;">No active poll</div>
             <div class="ce-options" style="display:none;"></div>
             <button class="ce-submit" style="display:none;width:100%;background:#6C5CE7;color:white;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;margin-top:12px;">Submit Answer</button>
             <div class="ce-poll-result" style="display:none;padding:12px;border-radius:8px;margin-top:12px;text-align:center;font-weight:600;"></div>
+          </div>
+
+          <!-- Quiz Container -->
+          <div class="ce-quiz-container" style="display:none;">
+            <div class="ce-quiz-header" style="margin-bottom:12px;">
+              <div class="ce-quiz-title" style="font-weight:600;font-size:15px;margin-bottom:4px;"></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="ce-quiz-progress" style="font-size:12px;color:#6F6F78;"></div>
+                <div class="ce-quiz-timer" style="font-size:13px;font-weight:600;color:#6C5CE7;"></div>
+              </div>
+            </div>
+            <div class="ce-quiz-question" style="font-weight:600;margin-bottom:12px;"></div>
+            <div class="ce-quiz-options"></div>
+            <div class="ce-quiz-nav" style="display:flex;gap:8px;margin-top:12px;">
+              <button class="ce-quiz-prev" style="flex:1;background:#f2f2f6;color:#6F6F78;border:none;padding:8px;border-radius:8px;cursor:pointer;font-weight:600;">← Previous</button>
+              <button class="ce-quiz-next" style="flex:1;background:#6C5CE7;color:white;border:none;padding:8px;border-radius:8px;cursor:pointer;font-weight:600;">Next →</button>
+            </div>
+            <button class="ce-quiz-submit" style="display:none;width:100%;background:#10b981;color:white;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;margin-top:12px;">Submit Quiz</button>
+            <div class="ce-quiz-result" style="display:none;padding:12px;border-radius:8px;margin-top:12px;text-align:center;"></div>
+          </div>
+
+          <div class="ce-no-activity" style="color:#6F6F78;text-align:center;padding:20px;">
+            No active poll or quiz
           </div>
         </div>
 
@@ -128,13 +164,30 @@ const db = getFirestore(app);
   const centerInput = container.querySelector('#ce-center');
   const joinBtn = container.querySelector('#ce-join-btn');
   const joinError = container.querySelector('#ce-join-error');
-  const pollsContent = container.querySelector('.ce-content-polls');
+  const activityContent = container.querySelector('.ce-content-activity');
   const leaderContent = container.querySelector('.ce-content-leader');
   const helloEl = container.querySelector('.ce-hello');
+
+  // Poll elements
+  const pollContainer = container.querySelector('.ce-poll-container');
   const questionEl = container.querySelector('.ce-question');
   const optionsEl = container.querySelector('.ce-options');
   const submitBtn = container.querySelector('.ce-submit');
   const pollResultEl = container.querySelector('.ce-poll-result');
+
+  // Quiz elements
+  const quizContainer = container.querySelector('.ce-quiz-container');
+  const quizTitle = container.querySelector('.ce-quiz-title');
+  const quizProgress = container.querySelector('.ce-quiz-progress');
+  const quizTimer = container.querySelector('.ce-quiz-timer');
+  const quizQuestion = container.querySelector('.ce-quiz-question');
+  const quizOptions = container.querySelector('.ce-quiz-options');
+  const quizPrevBtn = container.querySelector('.ce-quiz-prev');
+  const quizNextBtn = container.querySelector('.ce-quiz-next');
+  const quizSubmitBtn = container.querySelector('.ce-quiz-submit');
+  const quizResultEl = container.querySelector('.ce-quiz-result');
+  const noActivityEl = container.querySelector('.ce-no-activity');
+
   const top3El = container.querySelector('.ce-top3');
   const leaveBtn = container.querySelector('#ce-leave-btn');
   const refreshBtn = container.querySelector('.ce-refresh');
@@ -186,11 +239,11 @@ const db = getFirestore(app);
       t.style.color = '#fff';
 
       const tab = t.dataset.tab;
-      pollsContent.style.display = 'none';
+      activityContent.style.display = 'none';
       leaderContent.style.display = 'none';
 
       if (currentStudent) {
-        if (tab === 'polls') pollsContent.style.display = 'block';
+        if (tab === 'activity') activityContent.style.display = 'block';
         else leaderContent.style.display = 'block';
       }
     });
@@ -224,7 +277,7 @@ const db = getFirestore(app);
     document.addEventListener('mouseup', () => { down = false; document.body.style.userSelect = ''; });
     document.addEventListener('mousemove', e => {
       if (!down) return;
-      node.style.left = Math.max(8, Math.min(window.innerWidth - 340, e.clientX + off.x)) + 'px';
+      node.style.left = Math.max(8, Math.min(window.innerWidth - 360, e.clientX + off.x)) + 'px';
       node.style.top = Math.max(8, Math.min(window.innerHeight - 120, e.clientY + off.y)) + 'px';
     });
   })(container);
@@ -240,12 +293,33 @@ const db = getFirestore(app);
         return;
       }
       const data = snap.data();
-      renderPoll(data.activePoll || null);
+      const activePoll = data.activePoll || null;
+      const activeQuiz = data.activeQuiz || null;
+
+      // Show poll or quiz
+      if (activeQuiz) {
+        renderQuiz(activeQuiz);
+      } else if (activePoll) {
+        renderPoll(activePoll);
+      } else {
+        showNoActivity();
+      }
+
       renderLeaderboard(data.leaderboard || { topStudents: [], centers: {} });
     }, (err) => {
       console.error('Firestore listener error:', err);
       setStatus('Connection error');
     });
+  }
+
+  function showNoActivity() {
+    pollContainer.style.display = 'none';
+    quizContainer.style.display = 'none';
+    noActivityEl.style.display = 'block';
+    if (quizTimerInterval) {
+      clearInterval(quizTimerInterval);
+      quizTimerInterval = null;
+    }
   }
 
   // Join session
@@ -269,7 +343,6 @@ const db = getFirestore(app);
     };
 
     try {
-      // Ask background to write student to Firestore
       const response = await chrome.runtime.sendMessage({
         type: 'JOIN_SESSION',
         data: { sessionId, student }
@@ -295,7 +368,7 @@ const db = getFirestore(app);
 
   function showJoinedState() {
     joinForm.style.display = 'none';
-    pollsContent.style.display = 'block';
+    activityContent.style.display = 'block';
     leaveBtn.style.display = 'inline-block';
     helloEl.textContent = `Hello, ${currentStudent.name} (${currentStudent.center})`;
     sessionInfoEl.textContent = `Session: ${currentSessionId.slice(0, 8)}...`;
@@ -303,16 +376,19 @@ const db = getFirestore(app);
 
   async function leaveSession() {
     if (unsubscribe) unsubscribe();
+    if (quizTimerInterval) clearInterval(quizTimerInterval);
     unsubscribe = null;
+    quizTimerInterval = null;
     currentStudent = null;
     currentSessionId = null;
     currentPoll = null;
+    currentQuiz = null;
     selectedAnswer = null;
     hasAnsweredCurrentPoll = false;
     await clearState();
 
     joinForm.style.display = 'block';
-    pollsContent.style.display = 'none';
+    activityContent.style.display = 'none';
     leaderContent.style.display = 'none';
     leaveBtn.style.display = 'none';
     sessionInfoEl.textContent = '';
@@ -333,6 +409,10 @@ const db = getFirestore(app);
 
   // Render poll
   function renderPoll(poll) {
+    noActivityEl.style.display = 'none';
+    quizContainer.style.display = 'none';
+    pollContainer.style.display = 'block';
+
     if (!poll) {
       questionEl.textContent = 'No active poll';
       optionsEl.style.display = 'none';
@@ -392,7 +472,6 @@ const db = getFirestore(app);
     submitBtn.textContent = 'Submitting...';
 
     try {
-      // Send to background - server will compute correctness
       const response = await chrome.runtime.sendMessage({
         type: 'SUBMIT_ANSWER',
         data: {
@@ -402,7 +481,6 @@ const db = getFirestore(app);
           center: currentStudent.center,
           pollId: currentPoll.pollId,
           answer: selectedAnswer
-          // No isCorrect - server computes this
         }
       });
 
@@ -410,7 +488,7 @@ const db = getFirestore(app);
 
       if (response.success) {
         pollResultEl.style.animation = 'none';
-        pollResultEl.offsetHeight; // trigger reflow
+        pollResultEl.offsetHeight;
         if (response.isCorrect) {
           currentStudent.score += 10;
           pollResultEl.style.background = '#D4EDDA';
@@ -443,6 +521,183 @@ const db = getFirestore(app);
     submitBtn.disabled = false;
     submitBtn.textContent = 'Submit Answer';
   });
+
+  // Render quiz
+  function renderQuiz(quiz) {
+    noActivityEl.style.display = 'none';
+    pollContainer.style.display = 'none';
+    quizContainer.style.display = 'block';
+
+    if (!quiz) return;
+
+    // New quiz - reset state
+    if (!currentQuiz || currentQuiz.quizId !== quiz.quizId) {
+      currentQuiz = quiz;
+      quizAnswers = {};
+      currentQuestionIndex = 0;
+      hasSubmittedQuiz = false;
+      quizResultEl.style.display = 'none';
+
+      // Start timer
+      if (quiz.duration && quiz.duration > 0) {
+        quizTimeRemaining = quiz.duration;
+        if (quizTimerInterval) clearInterval(quizTimerInterval);
+        quizTimerInterval = setInterval(() => {
+          quizTimeRemaining--;
+          updateQuizTimer();
+          if (quizTimeRemaining <= 0) {
+            clearInterval(quizTimerInterval);
+            submitQuiz();
+          }
+        }, 1000);
+      }
+    }
+
+    quizTitle.textContent = quiz.title;
+    updateQuizProgress();
+    updateQuizTimer();
+    renderQuizQuestion();
+  }
+
+  function updateQuizProgress() {
+    const total = currentQuiz.questions.length;
+    quizProgress.textContent = `Question ${currentQuestionIndex + 1} of ${total}`;
+  }
+
+  function updateQuizTimer() {
+    if (currentQuiz.duration) {
+      const mins = Math.floor(quizTimeRemaining / 60);
+      const secs = quizTimeRemaining % 60;
+      quizTimer.textContent = `⏱ ${mins}:${secs.toString().padStart(2, '0')}`;
+      if (quizTimeRemaining < 30) {
+        quizTimer.style.color = '#e74c3c';
+      }
+    } else {
+      quizTimer.textContent = '';
+    }
+  }
+
+  function renderQuizQuestion() {
+    const q = currentQuiz.questions[currentQuestionIndex];
+    quizQuestion.textContent = q.question;
+    quizOptions.innerHTML = '';
+
+    q.options.forEach((opt, i) => {
+      const optDiv = document.createElement('div');
+      optDiv.style.cssText = 'padding:10px;margin:6px 0;border-radius:8px;border:2px solid #e6e6ee;cursor:pointer;transition:all 0.2s;';
+      optDiv.textContent = opt;
+
+      const currentAnswer = quizAnswers[q.questionId];
+      if (currentAnswer === i) {
+        optDiv.style.borderColor = '#6C5CE7';
+        optDiv.style.background = '#F0EEFF';
+      }
+
+      if (!hasSubmittedQuiz) {
+        optDiv.addEventListener('click', () => {
+          quizAnswers[q.questionId] = i;
+          renderQuizQuestion();
+        });
+        optDiv.addEventListener('mouseenter', () => {
+          if (currentAnswer !== i) optDiv.style.borderColor = '#A8A0F0';
+        });
+        optDiv.addEventListener('mouseleave', () => {
+          if (currentAnswer !== i) optDiv.style.borderColor = '#e6e6ee';
+        });
+      }
+
+      quizOptions.appendChild(optDiv);
+    });
+
+    // Navigation buttons
+    quizPrevBtn.style.display = currentQuestionIndex > 0 ? 'block' : 'none';
+    quizNextBtn.style.display = currentQuestionIndex < currentQuiz.questions.length - 1 ? 'block' : 'none';
+    quizSubmitBtn.style.display = currentQuestionIndex === currentQuiz.questions.length - 1 ? 'block' : 'none';
+  }
+
+  quizPrevBtn.addEventListener('click', () => {
+    if (currentQuestionIndex > 0) {
+      currentQuestionIndex--;
+      updateQuizProgress();
+      renderQuizQuestion();
+    }
+  });
+
+  quizNextBtn.addEventListener('click', () => {
+    if (currentQuestionIndex < currentQuiz.questions.length - 1) {
+      currentQuestionIndex++;
+      updateQuizProgress();
+      renderQuizQuestion();
+    }
+  });
+
+  quizSubmitBtn.addEventListener('click', submitQuiz);
+
+  async function submitQuiz() {
+    if (hasSubmittedQuiz) return;
+    hasSubmittedQuiz = true;
+
+    if (quizTimerInterval) {
+      clearInterval(quizTimerInterval);
+      quizTimerInterval = null;
+    }
+
+    quizSubmitBtn.disabled = true;
+    quizSubmitBtn.textContent = 'Submitting...';
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'SUBMIT_QUIZ',
+        data: {
+          sessionId: currentSessionId,
+          visibleStudentId: currentStudent.id,
+          visibleStudentName: currentStudent.name,
+          center: currentStudent.center,
+          quizId: currentQuiz.quizId,
+          answers: quizAnswers
+        }
+      });
+
+      if (response.success) {
+        quizResultEl.style.animation = 'popIn 0.4s ease';
+        quizResultEl.style.background = '#D4EDDA';
+        quizResultEl.style.color = '#155724';
+        quizResultEl.style.fontWeight = '600';
+
+        const correctCount = Object.values(response.results).filter(r => r.isCorrect).length;
+        const totalCount = currentQuiz.questions.length;
+
+        quizResultEl.innerHTML = `
+          <div style="font-size:24px;margin-bottom:8px;">✓</div>
+          <div>Quiz Complete!</div>
+          <div style="font-size:20px;margin-top:8px;">${correctCount}/${totalCount} Correct</div>
+          <div style="margin-top:8px;">Score: +${response.totalScore} points</div>
+        `;
+        quizResultEl.style.display = 'block';
+
+        // Hide quiz UI
+        quizOptions.style.display = 'none';
+        quizQuestion.style.display = 'none';
+        quizPrevBtn.style.display = 'none';
+        quizNextBtn.style.display = 'none';
+        quizSubmitBtn.style.display = 'none';
+      } else {
+        quizResultEl.style.background = '#F8D7DA';
+        quizResultEl.style.color = '#721C24';
+        quizResultEl.textContent = 'Submit failed: ' + (response.error || 'Unknown error');
+        quizResultEl.style.display = 'block';
+      }
+    } catch (err) {
+      console.error('Submit quiz error:', err);
+      quizResultEl.style.background = '#FFF3CD';
+      quizResultEl.style.color = '#856404';
+      quizResultEl.textContent = 'Error: ' + err.message;
+      quizResultEl.style.display = 'block';
+    }
+
+    quizSubmitBtn.disabled = false;
+    quizSubmitBtn.textContent = 'Submit Quiz';
+  }
 
   // Render leaderboard
   function renderLeaderboard(leaderboard) {
@@ -496,7 +751,7 @@ const db = getFirestore(app);
         setStatus('Session ended');
         await clearState();
         joinForm.style.display = 'block';
-        pollsContent.style.display = 'none';
+        activityContent.style.display = 'none';
       }
     }
   })();
