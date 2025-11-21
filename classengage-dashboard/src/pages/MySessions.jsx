@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase/init";
@@ -52,48 +52,55 @@ export default function MySessions() {
   }
 
   return (
-    <div className="container">
+    <div className="p-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24, flexWrap:'wrap', gap:16}}>
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <div>
-          <h1 style={{fontSize:28, fontWeight:700, marginBottom:4}}>My Sessions</h1>
-          <p className="small">Create and manage your live poll sessions</p>
+          <h1 className="text-2xl font-bold text-gray-800">My Sessions</h1>
+          <p className="text-sm text-gray-500">Create and manage your live poll sessions</p>
         </div>
-        <button className="btn" onClick={createSession} disabled={loading}>
+        <button
+          onClick={createSession}
+          disabled={loading}
+          className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition font-medium disabled:opacity-50"
+        >
           {loading ? "Creating..." : "+ New Session"}
         </button>
       </div>
 
       {/* Sessions List */}
       {sessions.length === 0 ? (
-        <div className="card" style={{textAlign:'center', padding:'48px 24px'}}>
-          <div style={{fontSize:48, marginBottom:16, opacity:0.3}}>📋</div>
-          <h4 style={{marginBottom:8}}>No sessions yet</h4>
-          <p className="small" style={{marginBottom:24}}>Create your first session to start engaging with students</p>
-          <button className="btn" onClick={createSession}>Create Session</button>
+        <div className="bg-white rounded-2xl p-12 shadow-md border border-gray-100 text-center">
+          <div className="text-5xl mb-4 opacity-30">📋</div>
+          <h4 className="text-lg font-semibold text-gray-800 mb-2">No sessions yet</h4>
+          <p className="text-sm text-gray-500 mb-6">Create your first session to start engaging with students</p>
+          <button onClick={createSession} className="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition font-medium">
+            Create Session
+          </button>
         </div>
       ) : (
-        <div>
+        <div className="space-y-3">
           {sessions.map(s => (
-            <div key={s.id} className="session-row">
+            <div key={s.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between flex-wrap gap-4">
               <div>
-                <div className="session-title" style={{display:'flex', alignItems:'center', gap:8}}>
-                  Session
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-semibold text-gray-800">Session</span>
                   {s.activePoll ? (
-                    <span className="badge active">Live Poll</span>
+                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">Live Poll</span>
                   ) : s.endedAt ? (
-                    <span className="badge inactive">Ended</span>
+                    <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-medium rounded-full">Ended</span>
                   ) : (
-                    <span className="badge inactive">No active poll</span>
+                    <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-medium rounded-full">No active poll</span>
                   )}
                 </div>
-                <p className="small">ID: {s.id}</p>
+                <p className="text-sm text-gray-500">ID: {s.id}</p>
               </div>
-              <div style={{display:'flex', gap:8}}>
-                <Link to={`/sessions/${s.id}`} className="btn">
-                  Open
-                </Link>
-              </div>
+              <Link
+                to={`/sessions/${s.id}`}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium text-sm"
+              >
+                Open
+              </Link>
             </div>
           ))}
         </div>

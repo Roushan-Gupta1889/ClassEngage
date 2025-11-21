@@ -1,5 +1,5 @@
 // popup.js
-const DASHBOARD_URL = 'http://localhost:5173';
+const DASHBOARD_URL = 'http://localhost:5175';
 
 function showToast(msg) {
   const toast = document.getElementById('toast');

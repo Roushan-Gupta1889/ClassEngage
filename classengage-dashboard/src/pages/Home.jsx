@@ -1,31 +1,30 @@
-import React from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../firebase/AuthProvider";
 
-export default function Home(){
+export default function Home() {
   const { user, logout } = useAuth();
   return (
-    <div className="container">
+    <div className="p-6 max-w-7xl mx-auto">
       {/* Hero Section */}
-      <div className="card" style={{textAlign:'center', padding:'48px 24px', background:'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color:'white', border:'none'}}>
-        <h1 style={{fontSize:32, fontWeight:700, marginBottom:8}}>Welcome to ClassEngage</h1>
-        <p style={{opacity:0.9, fontSize:16, marginBottom:24}}>
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-12 text-center text-white shadow-lg">
+        <h1 className="text-4xl font-bold mb-3">Welcome to ClassEngage</h1>
+        <p className="text-lg opacity-90 mb-8">
           Live polls & real-time leaderboards for Google Meet
         </p>
         {!user ? (
           <Link to="/login">
-            <button className="btn" style={{background:'white', color:'#6366f1', padding:'12px 32px', fontSize:16}}>
+            <button className="px-8 py-3 bg-white text-indigo-600 font-semibold rounded-lg shadow hover:bg-gray-50 transition">
               Get Started
             </button>
           </Link>
         ) : (
-          <div style={{display:'flex', gap:12, justifyContent:'center'}}>
+          <div className="flex gap-4 justify-center">
             <Link to="/sessions">
-              <button className="btn" style={{background:'white', color:'#6366f1', padding:'12px 24px'}}>
+              <button className="px-6 py-3 bg-white text-indigo-600 font-semibold rounded-lg shadow hover:bg-gray-50 transition">
                 My Sessions
               </button>
             </Link>
-            <button className="btn outline" onClick={logout} style={{borderColor:'white', color:'white'}}>
+            <button onClick={logout} className="px-6 py-3 border-2 border-white text-white font-semibold rounded-lg hover:bg-white/10 transition">
               Sign Out
             </button>
           </div>
@@ -33,46 +32,44 @@ export default function Home(){
       </div>
 
       {/* Features Grid */}
-      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:20, marginTop:24}}>
-        <div className="card">
-          <div style={{width:48, height:48, background:'#e0e7ff', borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:16}}>
-            <span style={{fontSize:24}}>1</span>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
+          <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-4">
+            <span className="text-xl font-bold text-indigo-600">1</span>
           </div>
-          <h4 style={{marginBottom:8}}>Create a Session</h4>
-          <p className="small">Start a new session from the dashboard and get a unique session ID to share with students.</p>
+          <h4 className="text-lg font-semibold text-gray-800 mb-2">Create a Session</h4>
+          <p className="text-sm text-gray-500">Start a new session from the dashboard and get a unique session ID to share with students.</p>
         </div>
 
-        <div className="card">
-          <div style={{width:48, height:48, background:'#dbeafe', borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:16}}>
-            <span style={{fontSize:24}}>2</span>
+        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
+          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+            <span className="text-xl font-bold text-blue-600">2</span>
           </div>
-          <h4 style={{marginBottom:8}}>Students Join via Extension</h4>
-          <p className="small">Students install the Chrome extension and enter the session ID to join from Google Meet.</p>
+          <h4 className="text-lg font-semibold text-gray-800 mb-2">Students Join via Extension</h4>
+          <p className="text-sm text-gray-500">Students install the Chrome extension and enter the session ID to join from Google Meet.</p>
         </div>
 
-        <div className="card">
-          <div style={{width:48, height:48, background:'#dcfce7', borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:16}}>
-            <span style={{fontSize:24}}>3</span>
+        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
+          <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4">
+            <span className="text-xl font-bold text-green-600">3</span>
           </div>
-          <h4 style={{marginBottom:8}}>Launch Polls & See Results</h4>
-          <p className="small">Create MCQ polls, students answer in real-time, and leaderboard updates instantly.</p>
+          <h4 className="text-lg font-semibold text-gray-800 mb-2">Launch Polls & See Results</h4>
+          <p className="text-sm text-gray-500">Create MCQ polls, students answer in real-time, and leaderboard updates instantly.</p>
         </div>
       </div>
 
       {/* Info Card */}
-      <div className="card" style={{marginTop:24, display:'flex', gap:24, alignItems:'center', flexWrap:'wrap'}}>
-        <div style={{flex:1, minWidth:250}}>
-          <h4 style={{marginBottom:8}}>Built for Interactive Learning</h4>
-          <p className="small">
+      <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 mt-8 flex flex-wrap items-center gap-6">
+        <div className="flex-1 min-w-[250px]">
+          <h4 className="text-lg font-semibold text-gray-800 mb-2">Built for Interactive Learning</h4>
+          <p className="text-sm text-gray-500">
             ClassEngage makes online classes more engaging with live polls during Google Meet sessions.
             Track student participation, see center-wise scores, and make learning fun!
           </p>
         </div>
-        <div>
-          <Link to="/sessions" className="btn">
-            Start Teaching
-          </Link>
-        </div>
+        <Link to="/sessions" className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg shadow hover:bg-indigo-700 transition">
+          Start Teaching
+        </Link>
       </div>
     </div>
   );

@@ -1,30 +1,28 @@
-import React from "react";
 import { useAuth } from "../firebase/AuthProvider";
 import { useNavigate } from "react-router-dom";
 
-export default function Login(){
+export default function Login() {
   const { user, login } = useAuth();
   const nav = useNavigate();
 
-  const handle = async ()=> {
+  const handle = async () => {
     await login();
     nav("/sessions");
   };
 
   return (
-    <div style={{minHeight:'80vh', display:'flex', alignItems:'center', justifyContent:'center', padding:24}}>
-      <div className="card" style={{maxWidth:420, width:'100%', textAlign:'center', padding:'48px 32px'}}>
-        <div style={{width:64, height:64, background:'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', borderRadius:16, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 24px'}}>
-          <span style={{fontSize:28, color:'white'}}>CE</span>
+    <div className="min-h-[80vh] flex items-center justify-center p-6">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 max-w-md w-full p-10 text-center">
+        <div className="w-16 h-16 bg-gradient-to-tr from-indigo-600 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-md">
+          <span className="text-2xl font-bold text-white">CE</span>
         </div>
-        <h2 style={{fontSize:24, fontWeight:700, marginBottom:8}}>Welcome Back</h2>
-        <p className="small" style={{marginBottom:32}}>Sign in to manage your sessions and create live polls</p>
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">Welcome Back</h2>
+        <p className="text-sm text-gray-500 mb-8">Sign in to manage your sessions and create live polls</p>
         <button
-          className="btn"
           onClick={handle}
-          style={{width:'100%', padding:'14px 24px', fontSize:15, justifyContent:'center'}}
+          className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition font-medium"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" style={{marginRight:8}}>
+          <svg width="18" height="18" viewBox="0 0 24 24">
             <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
             <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
             <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -32,7 +30,7 @@ export default function Login(){
           </svg>
           Continue with Google
         </button>
-        <p className="small" style={{marginTop:24}}>
+        <p className="text-sm text-gray-400 mt-6">
           For instructors and teachers only
         </p>
       </div>
