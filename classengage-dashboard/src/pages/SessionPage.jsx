@@ -57,14 +57,22 @@ export default function SessionPage(){
       correctOption: correctOption,
       type: 'mcq',
       createdAt: Date.now(),
-      expiresAt: Date.now() + 5*60*1000 // default 5 minutes
+      expiresAt: Date.now() + 5*60*1000
     };
     await setDoc(doc(db, 'sessions', sessionId), { activePoll: poll }, { merge: true });
-    toast.success('Poll launched');
+    toast.success('Poll launched!');
+    setQuestion('');
+    setOptions(['','']);
+    setCorrectOption(0);
+  }
+
+  async function endPoll(){
+    await setDoc(doc(db, 'sessions', sessionId), { activePoll: null }, { merge: true });
+    toast.success('Poll ended');
   }
 
   async function endSession(){
-    if(!confirm('End session and reset data?')) return;
+    if(!confirm('End session and reset all data?')) return;
     try {
       await updateDoc(doc(db,'sessions', sessionId), { endedAt: serverTimestamp(), activePoll: null, leaderboard: {} });
       toast.success('Session ended');
@@ -75,27 +83,57 @@ export default function SessionPage(){
   }
 
   return (
-    <div>
-      <div className="card">
-        <div style={{display:'flex',alignItems:'center',gap:12}}>
-          <h3>Session: {sessionId || '(new)'}</h3>
-          {!sessionId && <button className="btn" onClick={createSession}>Create Session</button>}
-          {sessionId && <button className="btn" onClick={() => {navigator.clipboard.writeText(sessionId); toast.success('Session ID copied!')}}>Copy Session ID</button>}
-          {sessionId && <button className="btn" onClick={endSession}>End Session</button>}
+    <div className="container">
+      {/* Header Card */}
+      <div className="card" style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:16}}>
+        <div>
+          <h3 style={{display:'flex', alignItems:'center', gap:12}}>
+            Session
+            {sessionId && <span className="badge active">Live</span>}
+          </h3>
+          {sessionId && <p className="small" style={{marginTop:4}}>ID: {sessionId}</p>}
         </div>
-        {sessionDoc && <div className="small">Instructor: {sessionDoc.createdBy}</div>}
+        <div className="flex">
+          {!sessionId && <button className="btn" onClick={createSession}>Create Session</button>}
+          {sessionId && (
+            <>
+              <button className="btn outline" onClick={() => {navigator.clipboard.writeText(sessionId); toast.success('Session ID copied!')}}>
+                Copy ID
+              </button>
+              <button className="btn danger" onClick={endSession}>End Session</button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="grid">
+        {/* Create Poll Card */}
         <div className="card">
           <h4>Create Poll</h4>
-          <div style={{marginBottom:8}}>
-            <input className="input" placeholder="Question" value={question} onChange={e=>setQuestion(e.target.value)} />
+
+          {activePoll && (
+            <div style={{background:'#fef3c7', padding:12, borderRadius:8, marginBottom:16, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <div>
+                <strong>Active Poll:</strong> {activePoll.question}
+              </div>
+              <button className="btn outline" onClick={endPoll} style={{padding:'6px 12px'}}>End Poll</button>
+            </div>
+          )}
+
+          <div style={{marginBottom:16}}>
+            <label className="small" style={{display:'block', marginBottom:6}}>Question</label>
+            <input
+              className="input"
+              placeholder="Enter your question..."
+              value={question}
+              onChange={e=>setQuestion(e.target.value)}
+            />
           </div>
-          <div>
-            <div className="small" style={{marginBottom:8}}>Select correct answer:</div>
+
+          <div style={{marginBottom:16}}>
+            <label className="small" style={{display:'block', marginBottom:8}}>Options (select correct answer)</label>
             {options.map((o,i)=>(
-              <div key={i} style={{display:'flex',gap:8,marginBottom:8,alignItems:'center'}}>
+              <div key={i} className="option-row">
                 <input
                   type="radio"
                   name="correctOption"
@@ -103,34 +141,65 @@ export default function SessionPage(){
                   onChange={() => setCorrectOption(i)}
                   title="Mark as correct"
                 />
-                <input className="input" placeholder={`Option ${i+1}`} value={o} onChange={e=>setOption(i,e.target.value)} />
-                <button className="btn" onClick={()=>removeOption(i)}>Remove</button>
+                <input
+                  className="input"
+                  placeholder={`Option ${i+1}`}
+                  value={o}
+                  onChange={e=>setOption(i,e.target.value)}
+                  style={{flex:1}}
+                />
+                {options.length > 2 && (
+                  <button className="btn outline" onClick={()=>removeOption(i)} style={{padding:'8px 12px'}}>
+                    Remove
+                  </button>
+                )}
               </div>
             ))}
-            <button className="btn" onClick={addOption}>Add option</button>
+            <button className="btn outline" onClick={addOption} style={{marginTop:8}}>
+              + Add Option
+            </button>
           </div>
-          <div style={{marginTop:12}}>
-            <button className="btn" onClick={launchPoll}>Launch Poll</button>
-          </div>
+
+          <button className="btn success" onClick={launchPoll} style={{width:'100%'}}>
+            Launch Poll
+          </button>
         </div>
 
+        {/* Leaderboard Card */}
         <div className="card">
           <h4>Live Leaderboard</h4>
-          <div>
-            <h5>Top Students</h5>
-            {leaderboard.topStudents?.length ? leaderboard.topStudents.map((s,idx)=>(
-              <div key={s.id} className="session-card" style={{marginBottom:8}}>
-                <div>{idx+1}. {s.name}</div>
-                <div>{s.score}</div>
-              </div>
-            )) : <div className="small">No data yet</div>}
-          </div>
-          <div style={{marginTop:12}}>
-            <h5>Centers</h5>
-            {Object.entries(leaderboard.centers||{}).map(([c,sc])=>(
-              <div key={c} className="small">{c} — {sc}</div>
-            ))}
-          </div>
+
+          <h5>Top Students</h5>
+          {leaderboard.topStudents?.length ? (
+            <div>
+              {leaderboard.topStudents.map((s,idx)=>(
+                <div key={s.id} className="leaderboard-item">
+                  <span className="leaderboard-rank">{idx+1}</span>
+                  <span className="leaderboard-name">{s.name}</span>
+                  <span className="leaderboard-score">{s.score} pts</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state" style={{padding:'20px 0'}}>
+              <p>No students yet</p>
+              <p className="small">Share the session ID with your students</p>
+            </div>
+          )}
+
+          <h5 style={{marginTop:24}}>Centers</h5>
+          {Object.entries(leaderboard.centers||{}).length > 0 ? (
+            <div>
+              {Object.entries(leaderboard.centers).sort((a,b)=>b[1]-a[1]).map(([c,sc])=>(
+                <div key={c} className="center-item">
+                  <span>{c}</span>
+                  <span>{sc} pts</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="small" style={{textAlign:'center', padding:'12px 0'}}>No center data</p>
+          )}
         </div>
       </div>
     </div>

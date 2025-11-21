@@ -1,4 +1,3 @@
-// src/pages/MySessions.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot } from "firebase/firestore";
@@ -13,7 +12,6 @@ export default function MySessions() {
   const [loading, setLoading] = useState(false);
   const [sessions, setSessions] = useState([]);
 
-  // subscribe to sessions created by current user (or show all for demo)
   useEffect(() => {
     if (!user) {
       setSessions([]);
@@ -41,11 +39,9 @@ export default function MySessions() {
       const docRef = await addDoc(collection(db, "sessions"), {
         createdBy: user.uid,
         createdAt: serverTimestamp(),
-        meetId: null,
         activePoll: null,
         leaderboard: {}
       });
-      // navigate to session page
       navigate(`/sessions/${docRef.id}`);
     } catch (e) {
       console.error(e);
@@ -56,38 +52,52 @@ export default function MySessions() {
   }
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <h1>My Sessions</h1>
-        <p className="muted">Create and manage live polls for Google Meet</p>
-      </div>
-
-      <div className="actions-row">
-        <button className="btn primary" onClick={createSession} disabled={loading}>
-          {loading ? "Creating…" : "Create Session"}
+    <div className="container">
+      {/* Header */}
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24, flexWrap:'wrap', gap:16}}>
+        <div>
+          <h1 style={{fontSize:28, fontWeight:700, marginBottom:4}}>My Sessions</h1>
+          <p className="small">Create and manage your live poll sessions</p>
+        </div>
+        <button className="btn" onClick={createSession} disabled={loading}>
+          {loading ? "Creating..." : "+ New Session"}
         </button>
-        <Link to="/" className="link">Back to home</Link>
       </div>
 
-      <div style={{marginTop:20}}>
-        <h3>Your recent sessions</h3>
-        {sessions.length === 0 ? (
-          <div className="card small">No sessions found — create one to get started.</div>
-        ) : (
-          sessions.map(s => (
-            <div key={s.id} className="session-row card">
+      {/* Sessions List */}
+      {sessions.length === 0 ? (
+        <div className="card" style={{textAlign:'center', padding:'48px 24px'}}>
+          <div style={{fontSize:48, marginBottom:16, opacity:0.3}}>📋</div>
+          <h4 style={{marginBottom:8}}>No sessions yet</h4>
+          <p className="small" style={{marginBottom:24}}>Create your first session to start engaging with students</p>
+          <button className="btn" onClick={createSession}>Create Session</button>
+        </div>
+      ) : (
+        <div>
+          {sessions.map(s => (
+            <div key={s.id} className="session-row">
               <div>
-                <div className="session-title">Session: <strong>{s.id}</strong></div>
-                <div className="small">Meet: {s.meetId || <em>Not connected</em>}</div>
+                <div className="session-title" style={{display:'flex', alignItems:'center', gap:8}}>
+                  Session
+                  {s.activePoll ? (
+                    <span className="badge active">Live Poll</span>
+                  ) : s.endedAt ? (
+                    <span className="badge inactive">Ended</span>
+                  ) : (
+                    <span className="badge inactive">No active poll</span>
+                  )}
+                </div>
+                <p className="small">ID: {s.id}</p>
               </div>
-              <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                <Link className="btn" to={`/sessions/${s.id}`}>Open</Link>
-                <a className="btn outline" href={`https://console.firebase.google.com/project/${process.env.REACT_APP_FIREBASE_PROJECT}/firestore/data/~2Fsessions~2F${s.id}`} target="_blank" rel="noreferrer">Inspect</a>
+              <div style={{display:'flex', gap:8}}>
+                <Link to={`/sessions/${s.id}`} className="btn">
+                  Open
+                </Link>
               </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
