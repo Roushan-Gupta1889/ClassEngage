@@ -19,12 +19,17 @@ export default function MySessions() {
     }
     const q = query(
       collection(db, "sessions"),
-      where("createdBy", "==", user.uid),
-      orderBy("createdAt", "desc")
+      where("createdBy", "==", user.uid)
     );
     const unsub = onSnapshot(q, snap => {
       const items = [];
       snap.forEach(d => items.push({ id: d.id, ...d.data() }));
+      // Sort client-side to avoid index requirement
+      items.sort((a, b) => {
+        const aTime = a.createdAt?.seconds || 0;
+        const bTime = b.createdAt?.seconds || 0;
+        return bTime - aTime;
+      });
       setSessions(items);
     }, err => {
       console.error('sessions listen error', err);

@@ -462,11 +462,23 @@ const db = getFirestore(app);
     });
 
     submitBtn.style.display = hasAnsweredCurrentPoll ? 'none' : 'block';
+    submitBtn.disabled = selectedAnswer === null || selectedAnswer === undefined;
+    submitBtn.style.opacity = submitBtn.disabled ? '0.5' : '1';
+    submitBtn.style.cursor = submitBtn.disabled ? 'not-allowed' : 'pointer';
   }
 
   // Submit answer - server validates correctness
   submitBtn.addEventListener('click', async () => {
-    if (selectedAnswer === null || !currentPoll || hasAnsweredCurrentPoll) return;
+    if (selectedAnswer === null || selectedAnswer === undefined) {
+      pollResultEl.style.background = '#FFF3CD';
+      pollResultEl.style.color = '#856404';
+      pollResultEl.textContent = 'Please select an answer first!';
+      pollResultEl.style.display = 'block';
+      setTimeout(() => { pollResultEl.style.display = 'none'; }, 2000);
+      return;
+    }
+
+    if (!currentPoll || hasAnsweredCurrentPoll) return;
 
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';

@@ -201,15 +201,18 @@ export default function SessionPage() {
 
   async function fetchQuizResults(quizId) {
     try {
-      const { getDocs, query, where, orderBy: fbOrderBy } = await import('firebase/firestore');
+      const { getDocs, query, where } = await import('firebase/firestore');
       const submissionsRef = collection(db, 'sessions', sessionId, 'quizSubmissions');
-      const q = query(submissionsRef, where('quizId', '==', quizId), fbOrderBy('totalScore', 'desc'));
+      const q = query(submissionsRef, where('quizId', '==', quizId));
       const snap = await getDocs(q);
 
       const results = [];
       snap.forEach(docSnap => {
         results.push({ id: docSnap.id, ...docSnap.data() });
       });
+
+      // Sort client-side to avoid index requirement
+      results.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
 
       setQuizResults(results);
     } catch (err) {
