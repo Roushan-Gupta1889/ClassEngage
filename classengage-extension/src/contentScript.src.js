@@ -375,6 +375,18 @@ const db = getFirestore(app);
   }
 
   async function leaveSession() {
+    // Record leave time in attendance
+    if (currentSessionId && currentStudent) {
+      try {
+        await chrome.runtime.sendMessage({
+          type: 'LEAVE_SESSION',
+          data: { sessionId: currentSessionId, studentId: currentStudent.id }
+        });
+      } catch (err) {
+        console.error('Leave session error:', err);
+      }
+    }
+
     if (unsubscribe) unsubscribe();
     if (quizTimerInterval) clearInterval(quizTimerInterval);
     unsubscribe = null;
@@ -594,32 +606,118 @@ const db = getFirestore(app);
     quizQuestion.textContent = q.question;
     quizOptions.innerHTML = '';
 
-    q.options.forEach((opt, i) => {
-      const optDiv = document.createElement('div');
-      optDiv.style.cssText = 'padding:10px;margin:6px 0;border-radius:8px;border:2px solid #e6e6ee;cursor:pointer;transition:all 0.2s;';
-      optDiv.textContent = opt;
-
-      const currentAnswer = quizAnswers[q.questionId];
-      if (currentAnswer === i) {
-        optDiv.style.borderColor = '#6C5CE7';
-        optDiv.style.background = '#F0EEFF';
-      }
+    // Render based on question type
+    if (q.type === 'text') {
+      // Text answer input
+      const textArea = document.createElement('textarea');
+      textArea.style.cssText = 'width:100%;padding:12px;border:2px solid #e6e6ee;border-radius:8px;font-size:14px;font-family:inherit;min-height:80px;resize:vertical;';
+      textArea.placeholder = 'Type your answer here...';
+      textArea.value = quizAnswers[q.questionId] || '';
 
       if (!hasSubmittedQuiz) {
-        optDiv.addEventListener('click', () => {
-          quizAnswers[q.questionId] = i;
-          renderQuizQuestion();
+        textArea.addEventListener('input', () => {
+          quizAnswers[q.questionId] = textArea.value;
         });
-        optDiv.addEventListener('mouseenter', () => {
-          if (currentAnswer !== i) optDiv.style.borderColor = '#A8A0F0';
-        });
-        optDiv.addEventListener('mouseleave', () => {
-          if (currentAnswer !== i) optDiv.style.borderColor = '#e6e6ee';
-        });
+      } else {
+        textArea.disabled = true;
       }
 
-      quizOptions.appendChild(optDiv);
-    });
+      quizOptions.appendChild(textArea);
+
+    } else if (q.correctAnswers && q.correctAnswers.length > 0) {
+      // MCQ with multiple correct answers - use checkboxes
+      const infoDiv = document.createElement('div');
+      infoDiv.style.cssText = 'font-size:12px;color:#6C5CE7;margin-bottom:10px;font-weight:600;';
+      infoDiv.textContent = '✓ Select all that apply';
+      quizOptions.appendChild(infoDiv);
+
+      // Initialize answer as array if not already
+      if (!Array.isArray(quizAnswers[q.questionId])) {
+        quizAnswers[q.questionId] = [];
+      }
+
+      q.options.forEach((opt, i) => {
+        const optDiv = document.createElement('div');
+        optDiv.style.cssText = 'padding:10px;margin:6px 0;border-radius:8px;border:2px solid #e6e6ee;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:8px;';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = quizAnswers[q.questionId].includes(i);
+        checkbox.style.cssText = 'width:18px;height:18px;cursor:pointer;';
+
+        const label = document.createElement('span');
+        label.textContent = opt;
+        label.style.flex = '1';
+        label.style.cursor = 'pointer';
+
+        if (checkbox.checked) {
+          optDiv.style.borderColor = '#6C5CE7';
+          optDiv.style.background = '#F0EEFF';
+        }
+
+        if (!hasSubmittedQuiz) {
+          const toggleCheckbox = () => {
+            const currentAnswers = quizAnswers[q.questionId];
+            if (currentAnswers.includes(i)) {
+              quizAnswers[q.questionId] = currentAnswers.filter(idx => idx !== i);
+            } else {
+              quizAnswers[q.questionId] = [...currentAnswers, i];
+            }
+            renderQuizQuestion();
+          };
+
+          checkbox.addEventListener('change', toggleCheckbox);
+          optDiv.addEventListener('click', (e) => {
+            if (e.target !== checkbox) {
+              checkbox.checked = !checkbox.checked;
+              toggleCheckbox();
+            }
+          });
+
+          optDiv.addEventListener('mouseenter', () => {
+            if (!quizAnswers[q.questionId].includes(i)) optDiv.style.borderColor = '#A8A0F0';
+          });
+          optDiv.addEventListener('mouseleave', () => {
+            if (!quizAnswers[q.questionId].includes(i)) optDiv.style.borderColor = '#e6e6ee';
+          });
+        } else {
+          checkbox.disabled = true;
+        }
+
+        optDiv.appendChild(checkbox);
+        optDiv.appendChild(label);
+        quizOptions.appendChild(optDiv);
+      });
+
+    } else {
+      // Single answer (MCQ or True/False) - use radio-style click
+      q.options.forEach((opt, i) => {
+        const optDiv = document.createElement('div');
+        optDiv.style.cssText = 'padding:10px;margin:6px 0;border-radius:8px;border:2px solid #e6e6ee;cursor:pointer;transition:all 0.2s;';
+        optDiv.textContent = opt;
+
+        const currentAnswer = quizAnswers[q.questionId];
+        if (currentAnswer === i) {
+          optDiv.style.borderColor = '#6C5CE7';
+          optDiv.style.background = '#F0EEFF';
+        }
+
+        if (!hasSubmittedQuiz) {
+          optDiv.addEventListener('click', () => {
+            quizAnswers[q.questionId] = i;
+            renderQuizQuestion();
+          });
+          optDiv.addEventListener('mouseenter', () => {
+            if (currentAnswer !== i) optDiv.style.borderColor = '#A8A0F0';
+          });
+          optDiv.addEventListener('mouseleave', () => {
+            if (currentAnswer !== i) optDiv.style.borderColor = '#e6e6ee';
+          });
+        }
+
+        quizOptions.appendChild(optDiv);
+      });
+    }
 
     // Navigation buttons
     quizPrevBtn.style.display = currentQuestionIndex > 0 ? 'block' : 'none';
@@ -655,7 +753,7 @@ const db = getFirestore(app);
     }
 
     quizSubmitBtn.disabled = true;
-    quizSubmitBtn.textContent = 'Submitting...';
+    quizSubmitBtn.innerHTML = '⏳ Submitting...';
 
     try {
       const response = await chrome.runtime.sendMessage({
@@ -670,21 +768,47 @@ const db = getFirestore(app);
         }
       });
 
+      console.log('Quiz submit response:', response);
+
+      if (!response) {
+        throw new Error('No response from background script');
+      }
+
       if (response.success) {
         quizResultEl.style.animation = 'popIn 0.4s ease';
-        quizResultEl.style.background = '#D4EDDA';
-        quizResultEl.style.color = '#155724';
-        quizResultEl.style.fontWeight = '600';
 
-        const correctCount = Object.values(response.results).filter(r => r.isCorrect).length;
-        const totalCount = currentQuiz.questions.length;
+        const autoGradedResults = Object.values(response.results).filter(r => r.gradingStatus === 'auto');
+        const pendingResults = Object.values(response.results).filter(r => r.gradingStatus === 'pending');
+        const correctCount = autoGradedResults.filter(r => r.isCorrect).length;
+        const autoGradedCount = autoGradedResults.length;
 
-        quizResultEl.innerHTML = `
-          <div style="font-size:24px;margin-bottom:8px;">✓</div>
-          <div>Quiz Complete!</div>
-          <div style="font-size:20px;margin-top:8px;">${correctCount}/${totalCount} Correct</div>
-          <div style="margin-top:8px;">Score: +${response.totalScore} points</div>
-        `;
+        if (pendingResults.length > 0) {
+          // Has text answers pending manual grading
+          quizResultEl.style.background = '#FFF3CD';
+          quizResultEl.style.color = '#856404';
+          quizResultEl.style.fontWeight = '600';
+
+          quizResultEl.innerHTML = `
+            <div style="font-size:24px;margin-bottom:8px;">📝</div>
+            <div>Quiz Submitted!</div>
+            <div style="font-size:16px;margin-top:8px;">${correctCount}/${autoGradedCount} Auto-graded Correct</div>
+            <div style="margin-top:8px;">Current Score: +${response.totalScore} points</div>
+            <div style="font-size:12px;margin-top:8px;opacity:0.9;">⚠️ ${pendingResults.length} text answer${pendingResults.length > 1 ? 's' : ''} pending teacher review</div>
+          `;
+        } else {
+          // All auto-graded
+          quizResultEl.style.background = '#D4EDDA';
+          quizResultEl.style.color = '#155724';
+          quizResultEl.style.fontWeight = '600';
+
+          quizResultEl.innerHTML = `
+            <div style="font-size:24px;margin-bottom:8px;">✓</div>
+            <div>Quiz Complete!</div>
+            <div style="font-size:20px;margin-top:8px;">${correctCount}/${autoGradedCount} Correct</div>
+            <div style="margin-top:8px;">Score: +${response.totalScore} points</div>
+          `;
+        }
+
         quizResultEl.style.display = 'block';
 
         // Hide quiz UI
@@ -698,17 +822,40 @@ const db = getFirestore(app);
         quizResultEl.style.color = '#721C24';
         quizResultEl.textContent = 'Submit failed: ' + (response.error || 'Unknown error');
         quizResultEl.style.display = 'block';
+
+        // Reset button on failure
+        quizSubmitBtn.style.display = 'block';
+        quizSubmitBtn.disabled = false;
+        quizSubmitBtn.innerHTML = 'Retry Submit';
+        hasSubmittedQuiz = false;
       }
     } catch (err) {
       console.error('Submit quiz error:', err);
+
+      // Check for extension context invalidation error
+      if (err.message && err.message.includes('Extension context invalidated')) {
+        quizResultEl.style.background = '#FFF3CD';
+        quizResultEl.style.color = '#856404';
+        quizResultEl.innerHTML = `
+          <div style="font-size:18px;margin-bottom:8px;">⚠️</div>
+          <div style="font-weight:600;margin-bottom:8px;">Extension Updated</div>
+          <div style="font-size:13px;">Please refresh this page to continue</div>
+        `;
+        quizResultEl.style.display = 'block';
+        quizSubmitBtn.disabled = true;
+        quizSubmitBtn.textContent = 'Please Refresh Page';
+        return;
+      }
+
       quizResultEl.style.background = '#FFF3CD';
       quizResultEl.style.color = '#856404';
       quizResultEl.textContent = 'Error: ' + err.message;
       quizResultEl.style.display = 'block';
+      quizSubmitBtn.style.display = 'block';
+      quizSubmitBtn.disabled = false;
+      quizSubmitBtn.innerHTML = 'Retry Submit';
+      hasSubmittedQuiz = false;
     }
-
-    quizSubmitBtn.disabled = false;
-    quizSubmitBtn.textContent = 'Submit Quiz';
   }
 
   // Render leaderboard
