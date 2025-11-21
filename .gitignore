@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+*.log
+
+# Extension build outputs (contain API keys)
+classengage-extension/src/extension/contentScript.js
+classengage-extension/src/extension/background.js
+classengage-extension/src/firebaseConfig.js
+classengage-extension/src/extension/config.js
+
+# Dashboard
+classengage-dashboard/dist/
+classengage-dashboard/.firebase/

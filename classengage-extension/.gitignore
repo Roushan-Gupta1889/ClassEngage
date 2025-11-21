@@ -1,0 +1,6 @@
+node_modules/
+.env
+src/extension/config.js
+src/extension/contentScript.js
+src/extension/background.js
+src/firebaseConfig.js

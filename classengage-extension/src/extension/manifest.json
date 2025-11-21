@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "ClassEngage",
+  "version": "0.1.0",
+  "description": "Live polls & session-only leaderboard for Google Meet (PW IOI)",
+  "permissions": ["scripting", "storage", "activeTab"],
+  "host_permissions": ["https://meet.google.com/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "ClassEngage"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://meet.google.com/*"],
+      "js": ["contentScript.js"],
+      "css": ["overlay.css"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>ClassEngage - Instructor</title>
+    <style>
+      body { font-family: Inter, Arial, sans-serif; width:320px; padding:12px; }
+      button { padding:10px; border-radius:8px; border:none; cursor:pointer; }
+      .primary { background:#6C5CE7; color:#fff; }
+      .muted { background:#f2f2f6; color:#333; margin-left:8px; }
+      .toast { position:fixed; bottom:12px; left:12px; right:12px; padding:10px; background:#e74c3c; color:#fff; border-radius:8px; font-size:13px; display:none; }
+      .toast.show { display:block; animation: fadeIn 0.3s; }
+      @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    </style>
+  </head>
+  <body>
+    <h3>ClassEngage — Instructor</h3>
+    <div>
+      <div id="meetInfo">Meeting: <em>Not detected</em></div>
+      <div style="margin-top:10px;">
+        <button id="startSession" class="primary">Start Session (detect Meet)</button>
+        <button id="openDashboard" class="muted">Open Dashboard</button>
+      </div>
+      <div style="margin-top:14px;">
+        <small>Tip: open this when you are in a Google Meet tab.</small>
+      </div>
+    </div>
+    <div id="toast" class="toast"></div>
+    <script src="popup.js"></script>
+  </body>
+</html>
