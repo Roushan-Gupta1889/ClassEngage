@@ -81,7 +81,8 @@ export default function SessionPage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [activeQuiz, quizTimeRemaining]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeQuiz, quizTimeRemaining]); // endQuiz causes unnecessary re-renders if added
 
   async function createSession() {
     if (!user) return toast.error('Please login first');
@@ -441,8 +442,10 @@ export default function SessionPage() {
         score: increment(additionalPoints)
       });
 
-      // Update leaderboard (reuse existing function from background)
-      // We'll need to refetch quiz results to show updated scores
+      // Update leaderboard manually since we're in the dashboard
+      await updateLeaderboardFromDashboard();
+
+      // Refetch quiz results to show updated scores
       await fetchQuizResults(currentGradingSubmission.quizId);
 
       toast.success(`Graded! +${additionalPoints} points added to ${currentGradingSubmission.visibleStudentName}`);
@@ -451,6 +454,31 @@ export default function SessionPage() {
     } catch (err) {
       console.error('Save manual grades error:', err);
       toast.error('Failed to save grades');
+    }
+  }
+
+  async function updateLeaderboardFromDashboard() {
+    try {
+      const { getDocs, query, orderBy, limit } = await import('firebase/firestore');
+
+      const studentsRef = collection(db, 'sessions', sessionId, 'students');
+      const q = query(studentsRef, orderBy('score', 'desc'), limit(10));
+      const studentsSnap = await getDocs(q);
+
+      const topStudents = [];
+      const centers = {};
+
+      studentsSnap.forEach(docSnap => {
+        const s = docSnap.data();
+        topStudents.push({ id: docSnap.id, name: s.name, center: s.center, score: s.score || 0 });
+        centers[s.center] = (centers[s.center] || 0) + (s.score || 0);
+      });
+
+      await updateDoc(doc(db, 'sessions', sessionId), {
+        leaderboard: { topStudents: topStudents.slice(0, 3), centers }
+      });
+    } catch (err) {
+      console.error('Update leaderboard error:', err);
     }
   }
 

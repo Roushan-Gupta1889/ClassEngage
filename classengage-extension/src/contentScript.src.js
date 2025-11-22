@@ -562,6 +562,12 @@ const db = getFirestore(app);
       hasSubmittedQuiz = false;
       quizResultEl.style.display = 'none';
 
+      // Reset UI elements that may have been hidden during previous submission
+      quizQuestion.style.display = 'block';
+      quizOptions.style.display = 'block';
+      quizSubmitBtn.disabled = false;
+      quizSubmitBtn.innerHTML = 'Submit Quiz';
+
       // Start timer
       if (quiz.duration && quiz.duration > 0) {
         quizTimeRemaining = quiz.duration;
@@ -756,17 +762,37 @@ const db = getFirestore(app);
     quizSubmitBtn.innerHTML = '⏳ Submitting...';
 
     try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'SUBMIT_QUIZ',
-        data: {
-          sessionId: currentSessionId,
-          visibleStudentId: currentStudent.id,
-          visibleStudentName: currentStudent.name,
-          center: currentStudent.center,
-          quizId: currentQuiz.quizId,
-          answers: quizAnswers
-        }
+      // Check if chrome.runtime is available
+      if (typeof chrome === 'undefined' || !chrome.runtime || typeof chrome.runtime.sendMessage !== 'function') {
+        throw new Error('Extension runtime not available. Please refresh the page.');
+      }
+
+      // Create a promise with 10-second timeout
+      const submitPromise = new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({
+          type: 'SUBMIT_QUIZ',
+          data: {
+            sessionId: currentSessionId,
+            visibleStudentId: currentStudent.id,
+            visibleStudentName: currentStudent.name,
+            center: currentStudent.center,
+            quizId: currentQuiz.quizId,
+            answers: quizAnswers
+          }
+        }, (response) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(response);
+          }
+        });
       });
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Submission timeout. Please try again.')), 10000);
+      });
+
+      const response = await Promise.race([submitPromise, timeoutPromise]);
 
       console.log('Quiz submit response:', response);
 
@@ -818,19 +844,15 @@ const db = getFirestore(app);
         quizNextBtn.style.display = 'none';
         quizSubmitBtn.style.display = 'none';
       } else {
-        quizResultEl.style.background = '#F8D7DA';
-        quizResultEl.style.color = '#721C24';
-        quizResultEl.textContent = 'Submit failed: ' + (response.error || 'Unknown error');
-        quizResultEl.style.display = 'block';
-
-        // Reset button on failure
-        quizSubmitBtn.style.display = 'block';
-        quizSubmitBtn.disabled = false;
-        quizSubmitBtn.innerHTML = 'Retry Submit';
-        hasSubmittedQuiz = false;
+        throw new Error(response.error || 'Unknown error');
       }
     } catch (err) {
       console.error('Submit quiz error:', err);
+
+      // Reset state to allow retry
+      hasSubmittedQuiz = false;
+      quizSubmitBtn.disabled = false;
+      quizSubmitBtn.style.display = 'block';
 
       // Check for extension context invalidation error
       if (err.message && err.message.includes('Extension context invalidated')) {
@@ -843,18 +865,39 @@ const db = getFirestore(app);
         `;
         quizResultEl.style.display = 'block';
         quizSubmitBtn.disabled = true;
-        quizSubmitBtn.textContent = 'Please Refresh Page';
+        quizSubmitBtn.innerHTML = 'Please Refresh Page';
         return;
       }
 
+      // Show error with retry button
       quizResultEl.style.background = '#FFF3CD';
       quizResultEl.style.color = '#856404';
-      quizResultEl.textContent = 'Error: ' + err.message;
+      quizResultEl.style.fontWeight = '600';
+      quizResultEl.innerHTML = `
+        <div style="font-size:18px;margin-bottom:8px;">⚠️</div>
+        <div style="font-weight:600;margin-bottom:4px;">Submission Failed</div>
+        <div style="font-size:13px;margin-bottom:8px;">${err.message}</div>
+        <button
+          onclick="document.querySelector('.ce-quiz-submit').click();"
+          style="margin-top:8px;padding:8px 16px;background:#6C5CE7;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;"
+        >
+          Retry Submit
+        </button>
+      `;
       quizResultEl.style.display = 'block';
-      quizSubmitBtn.style.display = 'block';
-      quizSubmitBtn.disabled = false;
       quizSubmitBtn.innerHTML = 'Retry Submit';
-      hasSubmittedQuiz = false;
+
+      // Fallback: Post message to window for potential mediator pattern
+      try {
+        window.postMessage({
+          type: 'CLASSENGAGE_QUIZ_SUBMIT_FAILED',
+          quizId: currentQuiz?.quizId,
+          error: err.message,
+          answers: quizAnswers
+        }, '*');
+      } catch (postErr) {
+        console.warn('Failed to post message:', postErr);
+      }
     }
   }
 
@@ -914,6 +957,26 @@ const db = getFirestore(app);
       }
     }
   })();
+
+  // Listen for fallback messages from page scripts (mediator pattern)
+  window.addEventListener('message', (event) => {
+    const data = event.data;
+    if (!data || data.source !== 'CLASS_ENGAGE_PAGE') return;
+
+    if (data.type === 'SUBMIT_QUIZ' || data.type === 'CLASSENGAGE_QUIZ_SUBMIT_FAILED') {
+      if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
+        chrome.runtime.sendMessage(
+          { type: 'SUBMIT_QUIZ', data: data.payload || data },
+          (response) => {
+            window.postMessage(
+              { source: 'CLASS_ENGAGE_CONTENT', type: 'SUBMIT_RESPONSE', response },
+              '*'
+            );
+          }
+        );
+      }
+    }
+  });
 
   console.log('ClassEngage content script loaded (bundled)');
 })();

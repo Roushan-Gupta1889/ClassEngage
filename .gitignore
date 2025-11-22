@@ -2,6 +2,8 @@ node_modules/
 dist/
 .env
 *.log
+nul
+.claude/
 
 # Extension build outputs (contain API keys)
 classengage-extension/src/extension/contentScript.js
