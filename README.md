@@ -84,7 +84,7 @@ ClassEngage/
 │   ├── tailwind.config.js
 │   └── postcss.config.js
 │
-├── classengage-extension/          # Chrome extension
+├── c–––      # Chrome extension
 │   ├── src/
 │   │   ├── background.src.js       # Service worker (trusted writer)
 │   │   ├── contentScript.src.js    # UI overlay & listeners
@@ -555,7 +555,7 @@ This project is licensed under the MIT License.
 
 For issues, questions, or feature requests:
 - Open an issue on GitHub
-- Contact: [your-email@example.com]
+- Contact: [roushan01jan@gmail.com]
 
 ---
 

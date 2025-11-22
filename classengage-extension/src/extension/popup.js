@@ -1,6 +1,6 @@
 // popup.js
 // Change this to your deployed dashboard URL in production
-const DASHBOARD_URL = 'http://localhost:5175'; // TODO: Replace with production URL
+const DASHBOARD_URL = 'http://localhost:5173'; // TODO: Replace with production URL
 
 function showToast(msg) {
   const toast = document.getElementById('toast');
